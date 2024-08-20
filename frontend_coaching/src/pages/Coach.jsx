@@ -1,148 +1,135 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { useUsers } from '../context/Users';
+import { useAvailability } from '../context/Availability';
+import { useBookings } from '../context/Bookings';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const Coach = () => {
-  const [availability, setAvailability] = useState([]);
-  const [upcomingSlots, setUpcomingSlots] = useState([]);
-  const [pastSessions, setPastSessions] = useState([]);
-  const [newSlotDate, setNewSlotDate] = useState('');
-  const [newSlotTime, setNewSlotTime] = useState('');
-  const [rating, setRating] = useState('');
-  const [notes, setNotes] = useState('');
-  
-  useEffect(() => {
-    // Fetch upcoming slots and past sessions from the API when the component mounts
-    fetchUpcomingSlots();
-    fetchPastSessions();
-  }, []);
+    const { users } = useUsers();
+    const { availabilitySlots, setAvailabilitySlots } = useAvailability();
+    const { bookings, setBookings } = useBookings();
+    const [selectedCoach, setSelectedCoach] = useState(null);
+    const [startDate, setStartDate] = useState(() => {
+        const now = new Date();
+        now.setHours(now.getHours() + 2);
+        return now;
+    });
 
-  const fetchUpcomingSlots = async () => {
-    // Mock fetch call - replace with your API call
-    const slots = [
-      { id: 1, date: '2024-08-21', time: '10:00 AM', student: 'John Doe' },
-      { id: 2, date: '2024-08-22', time: '02:00 PM', student: 'Jane Smith' },
-    ];
-    setUpcomingSlots(slots);
-  };
-
-  const fetchPastSessions = async () => {
-    // Mock fetch call - replace with your API call
-    const sessions = [
-      { id: 1, date: '2024-08-15', rating: 4, notes: 'Good session, very interactive.' },
-      { id: 2, date: '2024-08-16', rating: 5, notes: 'Excellent understanding of concepts.' },
-    ];
-    setPastSessions(sessions);
-  };
-
-  const addAvailabilitySlot = async (e) => {
-    e.preventDefault();
-    // Here, you would typically send a request to your backend to save the slot
-    const newSlot = {
-      date: newSlotDate,
-      time: newSlotTime,
-      duration: 120, // 2 hours
-    };
-    
-    setAvailability([...availability, newSlot]); // Update the local state
-    setNewSlotDate('');
-    setNewSlotTime('');
-  };
-
-  const [newSlot, setNewSlot] = useState('');
-
-  const handleAddSlot = () => {
-    if (!newSlot) return;
-
-    const startTime = new Date(newSlot);
-    const endTime = new Date(startTime);
-    endTime.setHours(startTime.getHours() + 2); // Add 2 hours to the start time
-
-    // Create a new slot object
-    const slot = {
-      id: availability.length + 1, // Mock ID
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
-      booked: false, // Slot is initially not booked
+    const handleCoachClick = (coach) => {
+        setSelectedCoach(coach);
     };
 
-    // Update the availability state
-    setAvailability([...availability, slot]);
-    setNewSlot(''); // Clear the input field
-  };
+    const handleAddSlot = () => {
+        const endDate = new Date(startDate);
+        endDate.setHours(startDate.getHours() + 2);
 
-  console.log(availability)
+        const newSlot = {
+            id: availabilitySlots.length + 1,
+            coach_id: selectedCoach.id,
+            start_time: startDate.toISOString(),
+            end_time: endDate.toISOString(),
+            is_booked: false,
+        };
+        setAvailabilitySlots([...availabilitySlots, newSlot]);
+    };
 
-  return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-4">Coach Dashboard</h2>
+    const coaches = users.filter(user => user.role === 'coach');
+    const coachAvailability = availabilitySlots.filter(slot => slot.coach_id === selectedCoach?.id);
+    const bookedSlotIds = new Set(
+        bookings
+            .filter(booking => booking.coach_id === selectedCoach?.id)
+            .map(booking => booking.slot_id)
+    );
 
-      {/* Add Availability Section */}
-      {/* Add Availability Slot Section */}
-      <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-2">Add Availability</h3>
-        <input
-          type="datetime-local"
-          value={newSlot}
-          onChange={(e) => setNewSlot(e.target.value)}
-          className="border p-2 rounded mr-2"
-        />
-        <button
-          onClick={handleAddSlot}
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          Add Slot
-        </button>
-      </div>
+    const availableSlots = coachAvailability.filter(slot => !bookedSlotIds.has(slot.id));
+    const upcomingSlots = bookings
+        .filter(booking => booking.coach_id === selectedCoach?.id)
+    const pastSlots = coachAvailability.filter(slot => new Date(slot.start_time) < new Date());
 
-            {/* Upcoming Slots Section */}
-    <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-2">Available Slots</h3>
-        <ul className="border rounded p-4">
-          {availability.length > 0 ? (
-            availability.map((slot) => (
-              <li key={slot.id} className="border-b py-2">
-                {new Date(slot.startTime).toDateString()} at 
-                {new Date(slot.startTime).toTimeString()} 
-              </li>
-            ))
-          ) : (
-            <li>No upcoming slots.</li>
-          )}
-        </ul>
-      </div>
+    console.log(bookings);
 
-      {/* Upcoming Slots Section */}
-      <div className="mb-8">
-        <h3 className="text-xl font-semibold mb-2">Upcoming Slots</h3>
-        <ul className="border rounded p-4">
-          {upcomingSlots.length > 0 ? (
-            upcomingSlots.map((slot) => (
-              <li key={slot.id} className="border-b py-2">
-                {slot.date} at {slot.time} - Student: {slot.student}
-              </li>
-            ))
-          ) : (
-            <li>No upcoming slots.</li>
-          )}
-        </ul>
-      </div>
+    return (
+        <div className="m-4">
+            <h1 className="mb-2">Coaches Dashboard</h1>
+            <div className="flex space-x-4">
+                {coaches.map(coach => (
+                    <button
+                        key={coach.id}
+                        className="border p-2"
+                        onClick={() => handleCoachClick(coach)}
+                    >
+                        {coach.name}
+                    </button>
+                ))}
+            </div>
 
-      {/* Past Sessions Section */}
-      <div>
-        <h3 className="text-xl font-semibold mb-2">Past Sessions</h3>
-        <ul className="border rounded p-4">
-          {pastSessions.length > 0 ? (
-            pastSessions.map((session) => (
-              <li key={session.id} className="border-b py-2">
-                Date: {session.date} - Rating: {session.rating} - Notes: {session.notes}
-              </li>
-            ))
-          ) : (
-            <li>No past sessions recorded.</li>
-          )}
-        </ul>
-      </div>
-    </div>
-  );
+            {selectedCoach && (
+                <div className="mt-8">
+                    <div className="mt-4">
+                        <h2>Select Date and Time:</h2>
+                        <DatePicker
+                            selected={startDate}
+                            onChange={(date) => setStartDate(date)}
+                            showTimeSelect
+                            dateFormat="Pp"
+                            className="border-spacing-14 p-2 mt-2"
+                        />
+                        <button className="mx-4 mt-2 p-2 bg-green-500 text-white" onClick={handleAddSlot}>
+                            Add Availability Slot
+                        </button>
+                    </div>
+
+                    <div className="mt-8">
+                        <h3>Available Slots</h3>
+                        {availableSlots.length > 0 ? (
+                            availableSlots.map(slot => (
+                                <div key={slot.id} className="border p-2 mt-2 rounded-lg">
+                                    {new Date(slot.start_time).toLocaleString()} - {new Date(slot.end_time).toLocaleString()}
+                                    <span className="ml-2 text-green-500">Available</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p>No available slots.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8">
+                        <h3>Upcoming Slots</h3>
+                        {upcomingSlots.length > 0 ? (
+                            upcomingSlots.map(slot => (
+                                <div key={slot.id} className="border p-2 mt-2 rounded-lg">
+                                    {new Date(slot.start_time).toLocaleString()}
+                                    <span className="ml-2 text-green-500">Booked with Student - {slot.student_name}</span>
+                                    {bookings.find(booking => booking.slot_id === slot.id) && (
+                                        <div>
+                                            <p>Phone Number: {bookings.find(booking => booking.slot_id === slot.id).student_phone_number}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        ) : (
+                            <p>No upcoming slots.</p>
+                        )}
+                    </div>
+
+                    <div className="mt-8">
+                        <h3>Past Slots</h3>
+                        {pastSlots.length > 0 ? (
+                            pastSlots.map(slot => (
+                                <div key={slot.id} className="border p-2 mt-2 rounded-lg">
+                                    {new Date(slot.start_time).toLocaleString()}
+                                    <span className="ml-2 text-red-500">Past</span>
+                                </div>
+                            ))
+                        ) : (
+                            <p>No past slots.</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
 };
 
 export default Coach;
